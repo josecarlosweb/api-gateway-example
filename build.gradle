@@ -1,0 +1,108 @@
+plugins {
+	id 'org.springframework.boot' version '2.1.12.RELEASE'
+	id 'org.jetbrains.kotlin.jvm' version '1.3.30'
+	id 'org.jetbrains.kotlin.plugin.spring' version '1.3.30'
+	id 'com.google.cloud.tools.jib' version '1.2.0'
+}
+
+apply plugin: 'io.spring.dependency-management'
+
+springBoot {
+	mainClassName = 'EntryPointKt'
+}
+
+def semver = '1.5'
+group = 'com.ccarvalho'
+version "$semver-SNAPSHOT"
+sourceCompatibility = '1.8'
+
+repositories {
+	mavenCentral()
+}
+
+if (!project.hasProperty("buildNumber")) {
+	ext.buildNumber = "0"
+}
+
+if (!project.hasProperty("isMaster")) {
+	ext.isMaster = false
+}
+isMaster = isMaster.toBoolean()
+
+if (!project.hasProperty("ecrDomain")) {
+	ext.ecrDomain = "YOUR_ECR_IMAGE"
+}
+
+def build_version = version.toString()
+def should_tag_latest = false
+
+if (semver ==~ /^\d+\.\d+$/ && isMaster) {
+	build_version = "$semver.$buildNumber"
+	should_tag_latest = true
+}
+
+jib {
+	to {
+		image = "$ecrDomain:$build_version"
+		tags = should_tag_latest? ["latest"] : []
+	}
+	container {
+		ports = ['8080']
+		entrypoint = ['java', '-cp', '/app/resources:/app/classes:/app/libs/*', 'EntryPointKt']
+	}
+}
+
+ext {
+	set('springCloudVersion', 'Greenwich.SR5')
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+	implementation 'org.jetbrains.kotlin:kotlin-reflect'
+	implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
+	implementation 'org.springframework.cloud:spring-cloud-starter-config'
+	implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
+	implementation('org.springframework.cloud:spring-cloud-starter-netflix-eureka-client') {
+		exclude group: 'com.sun.jersey'
+		exclude group: 'com.sun.jersey.contribs'
+		exclude group: 'javax.ws.rs', module: 'jsr311-api'
+	}
+	implementation 'com.github.docker-java:docker-java:3.1.1'
+
+	runtime('de.siegmar:logback-gelf:2.1.0')
+	runtime('org.codehaus.janino:janino:3.0.8')
+	testImplementation('org.springframework.boot:spring-boot-starter-test') {
+		exclude group: 'junit', module: 'junit'
+	}
+
+	testImplementation('org.junit.jupiter:junit-jupiter-api')
+	testRuntimeOnly('org.junit.jupiter:junit-jupiter-engine')
+	testRuntimeOnly('org.junit.vintage:junit-vintage-engine')
+	testImplementation('io.projectreactor:reactor-test')
+
+}
+
+test {
+	useJUnitPlatform()
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+	}
+}
+
+compileKotlin {
+	kotlinOptions {
+		freeCompilerArgs = ['-Xjsr305=strict']
+		jvmTarget = '1.8'
+	}
+}
+
+compileTestKotlin {
+	kotlinOptions {
+		freeCompilerArgs = ['-Xjsr305=strict']
+		jvmTarget = '1.8'
+	}
+}

@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: gm-api-gateway-${CONFIG_PROFILE:qa}
+  cloud:
+    config:
+      discovery:
+        enabled: true
+        serviceId: service-config
+      label: ${CONFIG_BRANCH:master}
+      profile: ${CONFIG_PROFILE:qa}
+      name: gm-api-gateway
+    gateway:
+      metrics:
+        enabled: true
+      discovery:
+        locator:
+          enabled: true
+
+eureka:
+  client:
+    registryFetchIntervalSeconds: 5
+    registerWithEureka: false
+    serviceUrl:
+      defaultZone: ${EUREKA_SERVICE_URL:http://eureka-qa.ccarvalho.com}/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: refresh,gateway,health,prometheus,metrics
+      base-path: /api-gateway

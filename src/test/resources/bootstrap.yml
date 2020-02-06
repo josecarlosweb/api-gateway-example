@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: gm-api-gateway-test
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+
+eureka:
+  client:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: refresh,gateway,health
+      base-path: /api-gateway

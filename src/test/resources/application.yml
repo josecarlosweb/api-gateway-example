@@ -1,0 +1,96 @@
+spring:
+  cloud:
+    gateway:
+      httpclient:
+        connect-timeout: 1200000
+        response-timeout: 1200000
+      default-filters:
+        - PrefixPath=/test
+        - name: OptionsMethodFilter
+        - name: PreserveHostHeader
+        - name: SecureCookieFilter
+        - name: SetResponseHeader
+          args:
+            name: "Public-Key-Pins"
+            value: "pin-sha256=\"shatest1\"; pin-sha256=\"shatest2\"; max-age=2592000; includeSubDomains"
+
+      routes:
+        - id: live_gateway
+          uri: lb://testservice
+          predicates:
+            - name: Host
+              args:
+                pattern: "**.ccarvalho.com"
+            - name: Path
+              args:
+                pattern:
+                  - '/'
+                  - '//'
+                  - '//index.html'
+                  - '/index.html'
+          filters:
+            - name: RewritePath
+              args:
+                regexp: "index.html"
+                replacement: ""
+            - DoubleSlashFilter
+          order: -1
+
+        - id: remove_lai_header
+          uri: "http://example.com"
+          predicates:
+            - Host=beta.ccarvalho.com,dev1.ccarvalho.com
+            - Path=/DeviceStatistic/**,/DeviceStatistic/
+            - Method=POST
+          filters:
+            - RemoveRequestHeader=ccarvalho-LAI
+          order: -1
+
+        - id: disable_device_statistic
+          uri: "http://example.com"
+          predicates:
+            - Host=dev3.ccarvalho.com,dev4.ccarvalho.com
+            - Path=/DeviceStatistic/**,/DeviceStatistic/
+            - Method=POST
+          filters:
+            - BooleanAnswerFilter
+          order: -1
+
+gm:
+  api-gateway:
+    discovery:
+      locators:
+        - lower-case-service-id: true
+          predicates:
+            - name: Host
+              args:
+                pattern: "serviceId.replaceFirst('gm-analytics-', '')+'.ccarvalho.com'"
+            - name: Path
+              args:
+                pattern:
+                  - "'/analytics/**'"
+                  - "'/analytics/'"
+          filters:
+            - name: RewritePath
+              args:
+                regexp: "'/analytics/(?<remaining>.*)'"
+                replacement: "'/${remaining}'"
+            - name: RewritePath
+              args:
+                regexp: "'/analytics'"
+                replacement: "'/'"
+
+          include-expression: serviceId.startsWith('GM-ANALYTICS')
+          route-id-prefix: ANALYTICS_
+          url-expression: "'lb://testservice'"
+
+        - lower-case-service-id: true
+          predicates:
+            - name: Host
+              args:
+                pattern: "serviceId.replaceFirst('some-server-', '')+'.ccarvalho.com'"
+          filters:
+            - name: DoubleSlashFilter
+          include-expression: serviceId.startsWith('SOME-SERVER')
+          route-id-prefix: CC_
+          url-expression: "'lb://testservice'"

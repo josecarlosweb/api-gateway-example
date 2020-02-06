@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+    <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}}/spring.log}"/>
+
+    <logger name="org.springframework.web" level="INFO"/>
+
+    <if condition='property("GRAYLOG_HOST") != null'>
+        <then>
+            <appender name="GELF_UDP_APPENDER" class="de.siegmar.logbackgelf.GelfUdpAppender">
+                <graylogHost>${GRAYLOG_HOST}</graylogHost>
+                <graylogPort>12201</graylogPort>
+                <maxChunkSize>508</maxChunkSize>
+                <useCompression>true</useCompression>
+                <encoder class="de.siegmar.logbackgelf.GelfEncoder">
+                    <includeRawMessage>true</includeRawMessage>
+                    <includeMarker>false</includeMarker>
+                    <includeMdcData>true</includeMdcData>
+                    <includeCallerData>true</includeCallerData>
+                    <includeRootCauseData>true</includeRootCauseData>
+                    <includeLevelName>true</includeLevelName>
+                    <shortPatternLayout class="ch.qos.logback.classic.PatternLayout">
+                        <pattern>%m%nopex</pattern>
+                    </shortPatternLayout>
+                    <fullPatternLayout class="ch.qos.logback.classic.PatternLayout">
+                        <pattern>%m</pattern>
+                    </fullPatternLayout>
+                    <staticField>application:gm-api-gateway</staticField>
+                    <staticField>environment:${CONFIG_PROFILE}</staticField>
+                    <staticField>source:${ENVIRONMENT_SOURCE}</staticField>
+                    <staticField>os_arch:${os.arch}</staticField>
+                    <staticField>os_name:${os.name}</staticField>
+                    <staticField>os_version:${os.version}</staticField>
+                </encoder>
+            </appender>
+            <root level="INFO">
+                <appender-ref ref="GELF_UDP_APPENDER"/>
+                <appender-ref ref="CONSOLE"/>
+            </root>
+        </then>
+        <else>
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+        </else>
+    </if>
+</configuration>
